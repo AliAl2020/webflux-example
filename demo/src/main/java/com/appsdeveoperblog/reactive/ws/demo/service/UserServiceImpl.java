@@ -2,22 +2,22 @@ package com.appsdeveoperblog.reactive.ws.demo.service;
 
 import com.appsdeveoperblog.reactive.ws.demo.data.UserEntity;
 import com.appsdeveoperblog.reactive.ws.demo.data.UserRepository;
-import com.appsdeveoperblog.reactive.ws.demo.presentation.CreateUserRequest;
-import com.appsdeveoperblog.reactive.ws.demo.presentation.UserRest;
+import com.appsdeveoperblog.reactive.ws.demo.presentation.model.CreateUserRequest;
+import com.appsdeveoperblog.reactive.ws.demo.presentation.model.UserRest;
 import org.springframework.beans.BeanUtils;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.HttpStatusCode;
+import org.springframework.security.core.userdetails.User;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.data.domain.Pageable;
+import reactor.core.scheduler.Schedulers;
+
+import java.util.ArrayList;
 import java.util.UUID;
 
 @RequiredArgsConstructor
@@ -25,12 +25,13 @@ import java.util.UUID;
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
 
     @Override
     public Mono<UserRest> createUser(Mono<CreateUserRequest> createUserRequestMono) {
         return createUserRequestMono
-                .mapNotNull(this::convertEntity) //createUserRequestMono --> cpnvert -->UserEntity
+                .flatMap(this::convertEntity) //createUserRequestMono --> cpnvert -->UserEntity
                 .flatMap(userRepository::save) // convert to Mono
                 .mapNotNull(this::convertToRest)
 //                .onErrorMap(throwable-> {
@@ -61,11 +62,17 @@ public class UserServiceImpl implements UserService {
                 .map(this::convertToRest);
     }
 
-    private UserEntity convertEntity(CreateUserRequest createUserRequest){
+    private Mono<UserEntity>convertEntity(CreateUserRequest createUserRequest){
 
-        UserEntity userEntity=UserEntity.builder().build();
-        BeanUtils.copyProperties(createUserRequest,userEntity);
-        return userEntity;
+        return Mono.fromCallable(()->{
+            UserEntity userEntity=UserEntity.builder().build();
+            BeanUtils.copyProperties(createUserRequest,userEntity);
+            userEntity.setPassword(passwordEncoder.encode(createUserRequest.getPassword()));
+            return userEntity;
+
+        }).subscribeOn(Schedulers.boundedElastic());
+
+
     }
 
     private UserRest convertToRest(UserEntity userEntity){
@@ -73,5 +80,15 @@ public class UserServiceImpl implements UserService {
         UserRest userRest = UserRest.builder().build();
         BeanUtils.copyProperties(userEntity,userRest);
         return userRest;
+    }
+
+    @Override
+    public Mono<UserDetails> findByUsername(String username) {
+        return userRepository.findByEmail(username)
+                .map(userEntity -> User
+                        .withUsername(userEntity.getEmail())
+                        .password(userEntity.getPassword())
+                        .authorities(new ArrayList<>())
+                        .build());
     }
 }

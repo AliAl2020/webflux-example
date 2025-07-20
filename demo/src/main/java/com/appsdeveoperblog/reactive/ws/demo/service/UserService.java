@@ -1,13 +1,14 @@
 package com.appsdeveoperblog.reactive.ws.demo.service;
 
-import com.appsdeveoperblog.reactive.ws.demo.presentation.CreateUserRequest;
-import com.appsdeveoperblog.reactive.ws.demo.presentation.UserRest;
+import com.appsdeveoperblog.reactive.ws.demo.presentation.model.CreateUserRequest;
+import com.appsdeveoperblog.reactive.ws.demo.presentation.model.UserRest;
+import org.springframework.security.core.userdetails.ReactiveUserDetailsService;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.UUID;
 
-public interface UserService {
+public interface UserService extends ReactiveUserDetailsService {
 
     Mono<UserRest> createUser(Mono<CreateUserRequest> createUserRequestMono);
     Mono<UserRest> getUserById(UUID id);

@@ -1,4 +1,4 @@
-package com.appsdeveoperblog.reactive.ws.demo.presentation;
+package com.appsdeveoperblog.reactive.ws.demo.presentation.model;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
